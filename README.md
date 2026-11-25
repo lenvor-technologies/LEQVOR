@@ -4,7 +4,7 @@ A private workspace for important records, trusted people, personal wishes, and 
 
 **LEQVOR by LENVOR — Assets | Records | Forever**
 
-Website: [leqvor.vercel.app](https://leqvor.vercel.app) · Repository: [charlieCipher/LEQVOR](https://github.com/charlieCipher/LEQVOR)
+Website: [leqvor.me](https://leqvor.me) · Repository: [charlieCipher/LEQVOR](https://github.com/charlieCipher/LEQVOR)
 
 **Branding updated: 5 October 2026.** LEQVOR is the product name. The LEQVOR master specification defines the current architecture. The implementation notes below are a historical progress snapshot from 12 September 2026, not a current deployment-status report.
 
@@ -96,23 +96,23 @@ The corresponding repair is recorded in [20260910_restore_vault_flows.sql](supab
 
 The current source contains the following V5 capabilities:
 
-| Area | Implemented work | Boundary |
-| --- | --- | --- |
-| Interface | Distinct authentication, overview, vault, record creation/detail, people, continuity, and security screens | Full production browser validation remains pending |
-| Preview | Explicit `?preview=1` sample workspace with fictional, session-only information | Preview does not prove live database functionality |
-| Vault encryption | Random vault master key; separate password and recovery wrappers; independent record and file keys; authenticated AES-GCM envelopes | Requires V5 schema and end-to-end validation |
-| Private metadata | Encrypted titles, descriptions, instructions, filenames, and trusted-person information | Older V4 plaintext metadata remains until migrated |
-| Recovery | Mandatory recovery verification during setup, recovery-based vault-password replacement, and recovery practice | Does not make old V4 phrases recover separately encrypted records |
-| Vault workflows | Create, list, reveal, update, delete with fresh authentication, and encrypted attachment upload/download | Interrupted operations and cleanup still need production validation |
-| Locking | Short reveal expiry, focus-loss locking, configurable inactivity Cold Lock, and Lock & Purge | Browser code cannot guarantee forensic memory erasure |
-| Authentication | Account sign-in/password reset and Supabase TOTP challenge/enrollment | Passkeys and device-bound unlock remain unimplemented |
-| Continuity | Encrypted instructions, templates, original locations, contacts, and factual completeness/readiness calculations | Readiness is not a security score or legal assessment |
-| Export | Encrypted recovery packages containing records and attachment objects | A complete restore/import workflow is still pending |
-| Offline verification | Recovery-package verification using the package and recovery secret without an account session | Drill utility; does not restore the live vault |
-| Sharing foundation | Key-wrapping, recipient-device migration, and key-rotation primitives | Invitations, verified recipients, authorized grants, and recipient UI are unfinished |
-| History foundation | Signed hash-chain primitives and checkpoint validation | Durable signed history and independent checkpoint services are unfinished |
-| Trust surfaces | Draft trust, security, privacy, status, disclosure, and subscription-pricing pages | Not finalized policies, monitored services, or working billing |
-| Legacy migration | V4 record import creates an encrypted V5 copy without destroying the original | V4 standalone-letter import UI remains pending |
+| Area                 | Implemented work                                                                                                                    | Boundary                                                                             |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Interface            | Distinct authentication, overview, vault, record creation/detail, people, continuity, and security screens                          | Full production browser validation remains pending                                   |
+| Preview              | Explicit `?preview=1` sample workspace with fictional, session-only information                                                     | Preview does not prove live database functionality                                   |
+| Vault encryption     | Random vault master key; separate password and recovery wrappers; independent record and file keys; authenticated AES-GCM envelopes | Requires V5 schema and end-to-end validation                                         |
+| Private metadata     | Encrypted titles, descriptions, instructions, filenames, and trusted-person information                                             | Older V4 plaintext metadata remains until migrated                                   |
+| Recovery             | Mandatory recovery verification during setup, recovery-based vault-password replacement, and recovery practice                      | Does not make old V4 phrases recover separately encrypted records                    |
+| Vault workflows      | Create, list, reveal, update, delete with fresh authentication, and encrypted attachment upload/download                            | Interrupted operations and cleanup still need production validation                  |
+| Locking              | Short reveal expiry, focus-loss locking, configurable inactivity Cold Lock, and Lock & Purge                                        | Browser code cannot guarantee forensic memory erasure                                |
+| Authentication       | Account sign-in/password reset and Supabase TOTP challenge/enrollment                                                               | Passkeys and device-bound unlock remain unimplemented                                |
+| Continuity           | Encrypted instructions, templates, original locations, contacts, and factual completeness/readiness calculations                    | Readiness is not a security score or legal assessment                                |
+| Export               | Encrypted recovery packages containing records and attachment objects                                                               | A complete restore/import workflow is still pending                                  |
+| Offline verification | Recovery-package verification using the package and recovery secret without an account session                                      | Drill utility; does not restore the live vault                                       |
+| Sharing foundation   | Key-wrapping, recipient-device migration, and key-rotation primitives                                                               | Invitations, verified recipients, authorized grants, and recipient UI are unfinished |
+| History foundation   | Signed hash-chain primitives and checkpoint validation                                                                              | Durable signed history and independent checkpoint services are unfinished            |
+| Trust surfaces       | Draft trust, security, privacy, status, disclosure, and subscription-pricing pages                                                  | Not finalized policies, monitored services, or working billing                       |
+| Legacy migration     | V4 record import creates an encrypted V5 copy without destroying the original                                                       | V4 standalone-letter import UI remains pending                                       |
 
 See [the V5 implementation and release ledger](docs/V5-IMPLEMENTATION.md) for the detailed boundaries.
 
@@ -133,16 +133,16 @@ These features do **not** grant access, establish legal entitlement, verify cove
 
 ## 3. What we verified
 
-| Check | Recorded result | Scope |
-| --- | --- | --- |
-| Earlier repaired frontend build | Passed | Before subsequent V5 changes |
-| Earlier frontend lint | Passed with warnings in older components | Not a fresh result for the current tree |
-| Initial repair test suite | 10 tests passed | V4 crypto compatibility, validation, locking, and error recovery |
-| Dependency security update | Reported zero vulnerabilities at completion | Historical result, not a current audit guarantee |
-| Live database write checks | Passed | Record, family, letter, and assignment writes in a rollback-only transaction |
-| Live database access checks | Passed | Anonymous asset/profile reads blocked, profile tier protected, private storage, missing-profile check |
-| Local browser check after V4 repair | Dashboard loaded without the earlier missing-table errors | Not a complete V5 browser/security test |
-| Current V5 and insurance test coverage | Test files are present | Latest complete pass/fail result was not re-established for this README update |
+| Check                                  | Recorded result                                           | Scope                                                                                                 |
+| -------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Earlier repaired frontend build        | Passed                                                    | Before subsequent V5 changes                                                                          |
+| Earlier frontend lint                  | Passed with warnings in older components                  | Not a fresh result for the current tree                                                               |
+| Initial repair test suite              | 10 tests passed                                           | V4 crypto compatibility, validation, locking, and error recovery                                      |
+| Dependency security update             | Reported zero vulnerabilities at completion               | Historical result, not a current audit guarantee                                                      |
+| Live database write checks             | Passed                                                    | Record, family, letter, and assignment writes in a rollback-only transaction                          |
+| Live database access checks            | Passed                                                    | Anonymous asset/profile reads blocked, profile tier protected, private storage, missing-profile check |
+| Local browser check after V4 repair    | Dashboard loaded without the earlier missing-table errors | Not a complete V5 browser/security test                                                               |
+| Current V5 and insurance test coverage | Test files are present                                    | Latest complete pass/fail result was not re-established for this README update                        |
 
 The database validation writes were **rolled back**; no validation records were intentionally left in the live vault.
 
@@ -202,21 +202,21 @@ Follow [the offline recovery instructions](docs/OFFLINE-RECOVERY.md). Enter the 
 
 ## 6. Project map and supporting documents
 
-| Location | Purpose |
-| --- | --- |
-| `src/App.jsx` | Authentication, public trust routes, and vault entry gates |
-| `src/app/` | Current workspace and feature screens |
-| `src/features/auth/` and `src/features/vault/` | TOTP and vault-session setup/unlock |
-| `src/components/` | Forms, records, people, continuity, security, and shared UI |
-| `src/modules/security/` | V4/V5 crypto, sessions, recovery, safe events, and history primitives |
-| `src/modules/vault/` | Legacy and V5 vault services |
-| `src/modules/continuity/` and `src/modules/insurance/` | Readiness and insurance relationships |
-| `src/styles/` | Design tokens and screen styling |
-| `supabase/migrations/` | Historical V4 repair and later V5 schema |
-| `supabase/tests/` | Database isolation validation |
-| `tests/` | Automated crypto, recovery, readiness, insurance, and UI tests |
-| `scripts/verify-recovery.mjs` | Offline package-verification command |
-| `.openai/hosting.json` | Registered Sites project configuration |
+| Location                                               | Purpose                                                               |
+| ------------------------------------------------------ | --------------------------------------------------------------------- |
+| `src/App.jsx`                                          | Authentication, public trust routes, and vault entry gates            |
+| `src/app/`                                             | Current workspace and feature screens                                 |
+| `src/features/auth/` and `src/features/vault/`         | TOTP and vault-session setup/unlock                                   |
+| `src/components/`                                      | Forms, records, people, continuity, security, and shared UI           |
+| `src/modules/security/`                                | V4/V5 crypto, sessions, recovery, safe events, and history primitives |
+| `src/modules/vault/`                                   | Legacy and V5 vault services                                          |
+| `src/modules/continuity/` and `src/modules/insurance/` | Readiness and insurance relationships                                 |
+| `src/styles/`                                          | Design tokens and screen styling                                      |
+| `supabase/migrations/`                                 | Historical V4 repair and later V5 schema                              |
+| `supabase/tests/`                                      | Database isolation validation                                         |
+| `tests/`                                               | Automated crypto, recovery, readiness, insurance, and UI tests        |
+| `scripts/verify-recovery.mjs`                          | Offline package-verification command                                  |
+| `.openai/hosting.json`                                 | Registered Sites project configuration                                |
 
 Supporting documents:
 
@@ -226,6 +226,7 @@ Supporting documents:
 - [Offline recovery instructions](docs/OFFLINE-RECOVERY.md)
 
 The earlier V4 migration is retained as historical source. Do not blindly rerun historical policies over a repaired database. Review the existing migration state before applying changes, and keep V4 live validation separate from V5 staging and release approval.
+
 - [Current LEQVOR master architecture](docs/LEQVOR-MASTER-ARCHITECTURE.md)
 - [Record transactions and cleanup deployment](docs/RECORD-TRANSACTIONS.md)
 - [Account-to-record validation evidence](docs/ACCOUNT-RECORD-VALIDATION.md)

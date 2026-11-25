@@ -1,4 +1,8 @@
-import { insurancePolicies, claimReadiness, renewalSchedule } from '../modules/insurance/continuity';
+import {
+  insurancePolicies,
+  claimReadiness,
+  renewalSchedule,
+} from "../modules/insurance/continuity";
 import { useVault } from "../features/vault/VaultContext";
 import StatementForm from "../components/continuity/StatementForm";
 import V5RecordDetail from "../components/records/V5RecordDetail";
@@ -8,8 +12,12 @@ import { Button, Card, Progress, Heading } from "../components/ui/Primitives";
 import Modal from "../components/Modal";
 import LegacyForm from "../components/LegacyForm";
 import RecordDetail from "../components/RecordDetail";
-import {useReviewClock} from '../modules/continuity/useReviewClock';
-import { recordedSections, reviewSchedule } from '../modules/continuity/readiness';
+import { useReviewClock } from "../modules/continuity/useReviewClock";
+import {
+  recordedSections,
+  reviewSchedule,
+} from "../modules/continuity/readiness";
+
 const sections = [
   ["Final wishes", "Your intentions, in your own words.", "heart"],
   ["Family letters", "Words for the people who matter most.", "letter"],
@@ -30,6 +38,7 @@ const sections = [
     "archive",
   ],
 ];
+
 export default function Continuity({
   pct,
   demo,
@@ -37,8 +46,9 @@ export default function Continuity({
   setLetters,
   session,
   go,
-  records=[],
+  records = [],
   people,
+  canWrite = true, // --- SECURITY UPDATE: Accept access flag from Workspace ---
 }) {
   const vault = useVault();
   const [step, setStep] = useState(3),
@@ -46,12 +56,36 @@ export default function Continuity({
     [letter, setLetter] = useState(null),
     [showReviews, setShowReviews] = useState(false),
     [sampleDone, setDone] = useState(demo ? [0, 2, 3, 4, 5] : []);
-  const done = demo ? sampleDone : recordedSections(letters, sections.map(([name])=>name));
+
+  // --- SECURITY UPDATE: Check if write is allowed for UI feedback ---
+  const isReadOnly = !canWrite && !demo;
+
+  const done = demo
+    ? sampleDone
+    : recordedSections(
+        letters,
+        sections.map(([name]) => name),
+      );
   const progress = Math.round((done.length / 6) * 100);
-  const reviewNow=useReviewClock();
-  const renewalStates=new Map(renewalSchedule(records,reviewNow).map(r=>[r.id,r.state]));
-  const renewalNote=id=>({MISSING:" · Renewal information missing",OVERDUE:" · Recorded renewal date passed",UPCOMING:" · Recorded renewal within 30 days"})[renewalStates.get(id)]||"";
-  const reviews = reviewSchedule([...new Map([...records,...letters].map(record=>[record.id,record])).values()],reviewNow);
+  const reviewNow = useReviewClock();
+  const renewalStates = new Map(
+    renewalSchedule(records, reviewNow).map((r) => [r.id, r.state]),
+  );
+  const renewalNote = (id) =>
+    ({
+      MISSING: " · Renewal information missing",
+      OVERDUE: " · Recorded renewal date passed",
+      UPCOMING: " · Recorded renewal within 30 days",
+    })[renewalStates.get(id)] || "";
+  const reviews = reviewSchedule(
+    [
+      ...new Map(
+        [...records, ...letters].map((record) => [record.id, record]),
+      ).values(),
+    ],
+    reviewNow,
+  );
+
   return (
     <>
       <Heading
@@ -59,6 +93,15 @@ export default function Continuity({
         title="Continuity Plan"
         text="Turn your intentions into a lasting plan."
       />
+
+      {/* --- SECURITY UPDATE: Show notice if read-only --- */}
+      {isReadOnly && (
+        <div role="alert" className="notice" style={{ marginBottom: "1rem" }}>
+          Your account is currently read-only. You cannot add or edit continuity
+          statements until your subscription is renewed.
+        </div>
+      )}
+
       <div className="continuity-layout">
         <aside className="journey">
           {[
@@ -99,11 +142,28 @@ export default function Continuity({
           {step === 3 ? (
             <>
               <div className="section-label">
-                <div><h2>Plan Sections</h2><p className="muted">Complete each section to create a comprehensive legacy plan.</p></div><div className="plan-inline-progress"><span>{done.length} of 6 sections</span><Progress value={progress}/><strong>{progress}%</strong></div>
+                <div>
+                  <h2>Plan Sections</h2>
+                  <p className="muted">
+                    Complete each section to create a comprehensive legacy plan.
+                  </p>
+                </div>
+                <div className="plan-inline-progress">
+                  <span>{done.length} of 6 sections</span>
+                  <Progress value={progress} />
+                  <strong>{progress}%</strong>
+                </div>
               </div>
               <div className="plan-sections">
                 {sections.map(([title, text, icon], i) => (
-                  <button key={title} onClick={() => setEditing(title)}>
+                  <button
+                    key={title}
+                    disabled={isReadOnly} // --- SECURITY UPDATE: Disable button if read-only ---
+                    onClick={() => {
+                      if (isReadOnly) return; // --- SECURITY UPDATE: Guard click ---
+                      setEditing(title);
+                    }}
+                  >
                     <span className="icon-tile">
                       <Icon name={icon} />
                     </span>
@@ -120,13 +180,82 @@ export default function Continuity({
                           size={13}
                         />{" "}
                         {done.includes(i)
-                          ? demo ? "Completed · sample" : "Statement recorded"
+                          ? demo
+                            ? "Completed · sample"
+                            : "Statement recorded"
                           : i === 1 && demo
                             ? "In progress"
                             : "Add your intentions"}
                       </span>
                     </div>
-                    <span className="plan-section-detail">View Details <Icon name="chevron" size={13}/></span><aside className="plan-section-preview">{demo ? (i===0?<p>“I hope to be remembered for my kindness, curiosity, and the people I loved.”</p>:i===1?<p>A letter to my children…<br/><br/>Life will take you in many directions, but always remember that you are enough.</p>:<ul>{(i===2?['Medical care','Notify family','Secure property','Access accounts']:i===3?['Family (5)','Legal (3)','Financial (2)','Healthcare (3)']:i===4?['Last Will & Testament','Power of Attorney','Healthcare Directive']:['Personal Assets','Digital Assets','Heirlooms & Memorabilia','Charitable Giving']).map(t=><li key={t}><Icon name={i===2?'check':'file'} size={13}/>{t}</li>)}</ul>):<p><Icon name="lock" size={20}/><br/>Private instructions<br/>Open to add your intentions.</p>}</aside></button>
+                    <span className="plan-section-detail">
+                      View Details <Icon name="chevron" size={13} />
+                    </span>
+                    <aside className="plan-section-preview">
+                      {demo ? (
+                        i === 0 ? (
+                          <p>
+                            “I hope to be remembered for my kindness, curiosity,
+                            and the people I loved.”
+                          </p>
+                        ) : i === 1 ? (
+                          <p>
+                            A letter to my children…
+                            <br />
+                            <br />
+                            Life will take you in many directions, but always
+                            remember that you are enough.
+                          </p>
+                        ) : (
+                          <ul>
+                            {(i === 2
+                              ? [
+                                  "Medical care",
+                                  "Notify family",
+                                  "Secure property",
+                                  "Access accounts",
+                                ]
+                              : i === 3
+                                ? [
+                                    "Family (5)",
+                                    "Legal (3)",
+                                    "Financial (2)",
+                                    "Healthcare (3)",
+                                  ]
+                                : i === 4
+                                  ? [
+                                      "Last Will & Testament",
+                                      "Power of Attorney",
+                                      "Healthcare Directive",
+                                    ]
+                                  : [
+                                      "Personal Assets",
+                                      "Digital Assets",
+                                      "Heirlooms & Memorabilia",
+                                      "Charitable Giving",
+                                    ]
+                            ).map((t) => (
+                              <li key={t}>
+                                <Icon
+                                  name={i === 2 ? "check" : "file"}
+                                  size={13}
+                                />
+                                {t}
+                              </li>
+                            ))}
+                          </ul>
+                        )
+                      ) : (
+                        <p>
+                          <Icon name="lock" size={20} />
+                          <br />
+                          Private instructions
+                          <br />
+                          Open to add your intentions.
+                        </p>
+                      )}
+                    </aside>
+                  </button>
                 ))}
               </div>
               {letters.map((l) => (
@@ -187,7 +316,37 @@ export default function Continuity({
               </Button>
             </Card>
           )}
-          {insurancePolicies(records).length > 0 && <Card className="insurance-continuity"><h2>Insurance continuity</h2><p className="field-hint">Beneficiary information and instructions your family may need.</p>{insurancePolicies(records).map(r=><button className="document-row" key={r.id} onClick={()=>go("/app/vault/"+r.id)}><Icon name="shield"/><span>{r.title}<small>{claimReadiness(r,people).completed}/{claimReadiness(r,people).total} administrative items recorded · {claimReadiness(r,people).items.find(i=>i.key==="beneficiary").complete?"Beneficiary recorded":"Beneficiary not recorded"}</small></span><Icon name="chevron"/></button>)}</Card>}
+          {insurancePolicies(records).length > 0 && (
+            <Card className="insurance-continuity">
+              <h2>Insurance continuity</h2>
+              <p className="field-hint">
+                Beneficiary information and instructions your family may need.
+              </p>
+              {insurancePolicies(records).map((r) => (
+                <button
+                  className="document-row"
+                  key={r.id}
+                  onClick={() => go("/app/vault/" + r.id)}
+                >
+                  <Icon name="shield" />
+                  <span>
+                    {r.title}
+                    <small>
+                      {claimReadiness(r, people).completed}/
+                      {claimReadiness(r, people).total} administrative items
+                      recorded ·{" "}
+                      {claimReadiness(r, people).items.find(
+                        (i) => i.key === "beneficiary",
+                      ).complete
+                        ? "Beneficiary recorded"
+                        : "Beneficiary not recorded"}
+                    </small>
+                  </span>
+                  <Icon name="chevron" />
+                </button>
+              ))}
+            </Card>
+          )}
           <div className="legal-note">
             <Icon name="info" size={18} />
             <p>
@@ -215,16 +374,26 @@ export default function Continuity({
               A stronger tomorrow starts with the care you take today.
             </p>
             <Progress value={progress} />
-            {!demo && <p className="field-hint">{done.length} of 6 sections have a saved statement. This tracks recorded intentions, not legal validity or access readiness. Asset information completeness: {pct}%.</p>}
+            {!demo && (
+              <p className="field-hint">
+                {done.length} of 6 sections have a saved statement. This tracks
+                recorded intentions, not legal validity or access readiness.
+                Asset information completeness: {pct}%.
+              </p>
+            )}
           </Card>
           <Card>
             <h2>Completion Checklist</h2>
             {sections.map(([title], i) => (
               <button
                 className="checklist-item"
-                aria-label={`${title}: ${done.includes(i) ? demo ? 'Sample complete' : 'Statement recorded' : 'Not recorded'}`}
+                aria-label={`${title}: ${done.includes(i) ? (demo ? "Sample complete" : "Statement recorded") : "Not recorded"}`}
                 key={title}
-                onClick={() => setEditing(title)}
+                disabled={isReadOnly} // --- SECURITY UPDATE: Disable button if read-only ---
+                onClick={() => {
+                  if (isReadOnly) return; // --- SECURITY UPDATE: Guard click ---
+                  setEditing(title);
+                }}
               >
                 <Icon name={done.includes(i) ? "check" : "circle"} size={16} />
                 {title}
@@ -233,38 +402,103 @@ export default function Continuity({
           </Card>
           <Card>
             <h2>Upcoming Reviews</h2>
-            {demo ? <div className="review-date">
-              <span>
-                OCT<strong>12</strong>
-              </span>
-              <p>
-                Review legal records
-                <small>
-                  {demo ? "Sample reminder" : "Suggested quarterly review"}
-                </small>
-              </p>
-            </div> : <>
-              <p className="field-hint">{reviews.filter(review=>review.due).length} due for review. Custom dates take priority; otherwise reviews are annual. No email reminder is scheduled.</p>
-              {reviews.length ? reviews.slice(0,3).map(review=><button key={review.id} className="document-row" onClick={()=>go('/app/vault/'+review.id)}><span>{review.title}<small>{review.due ? 'Review due' : 'Next review'}{review.date ? ` · ${new Date(review.date).toLocaleDateString()}` : ' · Review date not recorded'}{renewalNote(review.id)}</small></span><Icon name="chevron"/></button>) : <p className="muted">Save a record or statement to start your review schedule.</p>}
-              {reviews.length > 3 && <Button onClick={()=>setShowReviews(true)}>View all {reviews.length} reviews</Button>}
-            </>}
+            {demo ? (
+              <div className="review-date">
+                <span>
+                  OCT<strong>12</strong>
+                </span>
+                <p>
+                  Review legal records
+                  <small>
+                    {demo ? "Sample reminder" : "Suggested quarterly review"}
+                  </small>
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="field-hint">
+                  {reviews.filter((review) => review.due).length} due for
+                  review. Custom dates take priority; otherwise reviews are
+                  annual. No email reminder is scheduled.
+                </p>
+                {reviews.length ? (
+                  reviews.slice(0, 3).map((review) => (
+                    <button
+                      key={review.id}
+                      className="document-row"
+                      onClick={() => go("/app/vault/" + review.id)}
+                    >
+                      <span>
+                        {review.title}
+                        <small>
+                          {review.due ? "Review due" : "Next review"}
+                          {review.date
+                            ? ` · ${new Date(review.date).toLocaleDateString()}`
+                            : " · Review date not recorded"}
+                          {renewalNote(review.id)}
+                        </small>
+                      </span>
+                      <Icon name="chevron" />
+                    </button>
+                  ))
+                ) : (
+                  <p className="muted">
+                    Save a record or statement to start your review schedule.
+                  </p>
+                )}
+                {reviews.length > 3 && (
+                  <Button onClick={() => setShowReviews(true)}>
+                    View all {reviews.length} reviews
+                  </Button>
+                )}
+              </>
+            )}
             <Button
               variant="primary"
               icon="arrow"
+              disabled={isReadOnly} // --- SECURITY UPDATE: Disable button if read-only ---
               onClick={() => {
+                if (isReadOnly) return; // --- SECURITY UPDATE: Guard click ---
                 setStep(3);
-                setEditing(sections.find((_,i)=>!done.includes(i))?.[0] || 'Final wishes');
+                setEditing(
+                  sections.find((_, i) => !done.includes(i))?.[0] ||
+                    "Final wishes",
+                );
               }}
             >
-              {done.length === 6 ? 'Review Plan' : 'Continue Plan'}
+              {done.length === 6 ? "Review Plan" : "Continue Plan"}
             </Button>
           </Card>
         </aside>
       </div>
       {showReviews && (
-        <Modal title="Record reviews" onClose={()=>setShowReviews(false)}>
-          <p className="field-hint">Open a record, reveal it and confirm its information is still current. You can choose a custom next review date when editing.</p>
-          {reviews.map(review=><button key={review.id} className="document-row" onClick={()=>{setShowReviews(false);go('/app/vault/'+review.id);}}><span>{review.title}<small>{review.due ? 'Review due' : 'Next review'}{review.date ? ` · ${new Date(review.date).toLocaleDateString()}` : ' · Review date not recorded'}{renewalNote(review.id)}</small></span><Icon name="chevron"/></button>)}
+        <Modal title="Record reviews" onClose={() => setShowReviews(false)}>
+          <p className="field-hint">
+            Open a record, reveal it and confirm its information is still
+            current. You can choose a custom next review date when editing.
+          </p>
+          {reviews.map((review) => (
+            <button
+              key={review.id}
+              className="document-row"
+              onClick={() => {
+                setShowReviews(false);
+                go("/app/vault/" + review.id);
+              }}
+            >
+              <span>
+                {review.title}
+                <small>
+                  {review.due ? "Review due" : "Next review"}
+                  {review.date
+                    ? ` · ${new Date(review.date).toLocaleDateString()}`
+                    : " · Review date not recorded"}
+                  {renewalNote(review.id)}
+                </small>
+              </span>
+              <Icon name="chevron" />
+            </button>
+          ))}
         </Modal>
       )}
       {editing && (
@@ -282,11 +516,14 @@ export default function Continuity({
                 <textarea
                   rows={6}
                   placeholder="What would you like your family to know?"
+                  disabled={isReadOnly} // --- SECURITY UPDATE: Disable textarea if read-only ---
                 />
               </label>
               <Button
                 variant="primary"
+                disabled={isReadOnly} // --- SECURITY UPDATE: Disable button if read-only ---
                 onClick={() => {
+                  if (isReadOnly) return; // --- SECURITY UPDATE: Guard click ---
                   setDone((old) => [
                     ...new Set([
                       ...old,
@@ -302,7 +539,9 @@ export default function Continuity({
           ) : vault ? (
             <StatementForm
               section={editing}
+              canWrite={canWrite} // --- SECURITY UPDATE: Pass access flag down ---
               onSaved={(l) => {
+                if (!canWrite) return; // --- SECURITY UPDATE: Guard local state update ---
                 setLetters((old) => [l, ...old]);
                 setEditing(null);
               }}
@@ -310,8 +549,10 @@ export default function Continuity({
           ) : (
             <LegacyForm
               session={session}
+              canWrite={canWrite} // --- SECURITY UPDATE: Pass access flag down ---
               onCancel={() => setEditing(null)}
               onSaved={(l) => {
+                if (!canWrite) return; // --- SECURITY UPDATE: Guard local state update ---
                 setLetters((old) => [l, ...old]);
                 setEditing(null);
               }}
@@ -335,4 +576,3 @@ export default function Continuity({
     </>
   );
 }
-

@@ -11,8 +11,9 @@ import {
 import { DatabaseProvider, AuthProvider } from "../../lib/providers";
 import { AurevaError, safeFailure } from "../../modules/security/safeEvents";
 import { Button, Card } from "../../components/ui/Primitives";
-import SecureEntryFrame from '../../components/security/SecureEntryFrame';
-import { MIN_PASSWORD_LENGTH, PASSWORD_HINT } from '../../lib/passwordPolicy';
+import SecureEntryFrame from "../../components/security/SecureEntryFrame";
+import { MIN_PASSWORD_LENGTH, PASSWORD_HINT } from "../../lib/passwordPolicy";
+
 export default function VaultGate({ session, children }) {
   const [vault, setVault] = useState(null),
     [loading, setLoading] = useState(true),
@@ -26,16 +27,19 @@ export default function VaultGate({ session, children }) {
     [recovery, setRecovery] = useState(false),
     [retry, setRetry] = useState(0);
   const controller = useRef(null),
-    generation = useRef(0), unlockForm=useRef(null);
+    generation = useRef(0),
+    unlockForm = useRef(null);
   if (!controller.current) controller.current = new VaultSession();
+
   useEffect(() => {
     let alive = true;
     DatabaseProvider.vault(session.user.id)
       .then((v) => {
-        if (v && v.owner_id !== session.user.id) throw new Error('Vault owner mismatch.');
+        if (v && v.owner_id !== session.user.id)
+          throw new Error("Vault owner mismatch.");
         if (alive) {
           setLoaded(true);
-          setError('');
+          setError("");
           setDecryptFailed(false);
           setVault(v);
           setLoading(false);
@@ -51,6 +55,7 @@ export default function VaultGate({ session, children }) {
       alive = false;
     };
   }, [session.user.id, retry]);
+
   useEffect(() => {
     const c = controller.current;
     // Keep the live counter; a numeric snapshot could restore an old generation.
@@ -63,18 +68,19 @@ export default function VaultGate({ session, children }) {
     });
     const hidden = () => {
       if (document.visibilityState !== "visible") {
-        setLockNotice("Your vault locked because the app moved to the background. Return here and unlock to continue.");
+        setLockNotice(
+          "Your vault locked because the app moved to the background. Return here and unlock to continue.",
+        );
         generation.current++;
         c.lock();
       }
     };
-    const blur = () => {
-      setLockNotice("Your vault locked because this window lost focus. Unlock again when you are ready.");
-      generation.current++;
-      c.lock();
-    };
     const touch = () => c.touch();
-    window.addEventListener("blur", blur);
+
+    // --- BUG FIX: REMOVED 'blur' listener ---
+    // This prevents the vault from locking when the OS file picker opens.
+    // The 'visibilitychange' listener is still active to lock if the tab is minimized/switched.
+
     document.addEventListener("visibilitychange", hidden);
     window.addEventListener("pointerdown", touch);
     window.addEventListener("keydown", touch);
@@ -82,12 +88,12 @@ export default function VaultGate({ session, children }) {
       operationGeneration.current++;
       off();
       c.dispose();
-      window.removeEventListener("blur", blur);
       document.removeEventListener("visibilitychange", hidden);
       window.removeEventListener("pointerdown", touch);
       window.removeEventListener("keydown", touch);
     };
   }, []);
+
   async function submit(e) {
     e.preventDefault();
     if (busy || loading || !loaded) return;
@@ -104,9 +110,16 @@ export default function VaultGate({ session, children }) {
         // Another device may have legitimately replaced the password wrapper.
         // Read ciphertext again; never reset a password or reuse a stale wrapper.
         const latest = await DatabaseProvider.vault(session.user.id);
-        if (version !== generation.current) throw new Error('Session changed.');
-        if (!latest || latest.owner_id !== session.user.id || latest.id !== current.id)
-          throw new AurevaError('VAULT_UNAVAILABLE','This vault could not be verified for the signed-in account. Sign in again before continuing.');
+        if (version !== generation.current) throw new Error("Session changed.");
+        if (
+          !latest ||
+          latest.owner_id !== session.user.id ||
+          latest.id !== current.id
+        )
+          throw new AurevaError(
+            "VAULT_UNAVAILABLE",
+            "This vault could not be verified for the signed-in account. Sign in again before continuing.",
+          );
         current = latest;
         setVault(current);
       }
@@ -145,7 +158,11 @@ export default function VaultGate({ session, children }) {
           true,
         );
         if (version !== generation.current) throw new Error("Session changed.");
-        current = await DatabaseProvider.updateVault(current.id, update, current.wrapped_vmk_password.nonce);
+        current = await DatabaseProvider.updateVault(
+          current.id,
+          update,
+          current.wrapped_vmk_password.nonce,
+        );
         setVault(current);
       }
       if (version !== generation.current) {
@@ -158,7 +175,9 @@ export default function VaultGate({ session, children }) {
       setUnlocked(true);
     } catch (e) {
       if (version !== generation.current) {
-        setLockNotice("Unlock was cancelled because the secure session changed. Keep this window active and try again.");
+        setLockNotice(
+          "Unlock was cancelled because the secure session changed. Keep this window active and try again.",
+        );
         return;
       }
       setError(
@@ -166,13 +185,14 @@ export default function VaultGate({ session, children }) {
           ? e.message
           : safeFailure(e),
       );
-      setDecryptFailed(e?.name === 'OperationError');
+      setDecryptFailed(e?.name === "OperationError");
     } finally {
       element.reset();
       for (const name of [...form.keys()]) form.delete(name);
       setBusy(false);
     }
   }
+
   if (unlocked && vault)
     return (
       <VaultContext.Provider
@@ -191,6 +211,7 @@ export default function VaultGate({ session, children }) {
         {children}
       </VaultContext.Provider>
     );
+
   return (
     <SecureEntryFrame>
       <Card>
@@ -212,7 +233,8 @@ export default function VaultGate({ session, children }) {
         {error && (
           <div className="notice" role="alert">
             {error}
-            {decryptFailed && ' Check the signed-in account and use its vault password, or recover using your saved 24 words. Your account login password does not unlock the vault.'}
+            {decryptFailed &&
+              " Check the signed-in account and use its vault password, or recover using your saved 24 words. Your account login password does not unlock the vault."}
             <Button
               disabled={busy}
               onClick={() => {
@@ -222,11 +244,15 @@ export default function VaultGate({ session, children }) {
                 setRetry((n) => n + 1);
               }}
             >
-              {decryptFailed ? 'Reload vault' : 'Retry connection'}
+              {decryptFailed ? "Reload vault" : "Retry connection"}
             </Button>
           </div>
         )}
-        {lockNotice && <p className="notice" role="status">{lockNotice}</p>}
+        {lockNotice && (
+          <p className="notice" role="status">
+            {lockNotice}
+          </p>
+        )}
         {!loading && loaded && (
           <form ref={unlockForm} className="stack-form" onSubmit={submit}>
             {recovery ? (
@@ -274,7 +300,12 @@ export default function VaultGate({ session, children }) {
                   minLength={vault ? undefined : MIN_PASSWORD_LENGTH}
                   autoComplete={vault ? "current-password" : "new-password"}
                 />
-                {!vault && <small className="field-hint">{PASSWORD_HINT} Your recovery phrase contains 24 words and is separate.</small>}
+                {!vault && (
+                  <small className="field-hint">
+                    {PASSWORD_HINT} Your recovery phrase contains 24 words and
+                    is separate.
+                  </small>
+                )}
               </label>
             )}
             {!vault && (

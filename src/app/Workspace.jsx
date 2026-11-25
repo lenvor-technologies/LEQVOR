@@ -1,14 +1,17 @@
-import Insurance from './Insurance';
-import SecurityDetails from '../components/security/SecurityDetails';
-import { securityDetailNames } from '../components/security/securityDetailCatalog';
-import { detailPreferences, saveDetailPreferences } from '../components/security/previewPreferences';
-import AccessPlanner from '../components/people/AccessPlanner';
-import SharePermissions from '../components/people/SharePermissions';
+import Insurance from "./Insurance";
+import SecurityDetails from "../components/security/SecurityDetails";
+import { securityDetailNames } from "../components/security/securityDetailCatalog";
+import {
+  detailPreferences,
+  saveDetailPreferences,
+} from "../components/security/previewPreferences";
+import AccessPlanner from "../components/people/AccessPlanner";
+import SharePermissions from "../components/people/SharePermissions";
 import LegacyImport from "../components/security/LegacyImport";
 import MfaSetup from "../components/security/MfaSetup";
 import Pricing from "../Pricing";
 import { assessReadiness } from "../modules/continuity/readiness";
-import {useReviewClock} from '../modules/continuity/useReviewClock';
+import { useReviewClock } from "../modules/continuity/useReviewClock";
 import { useEffect, useRef, useState } from "react";
 import Icon from "../components/Icon";
 import {
@@ -30,20 +33,25 @@ import { familyService } from "../modules/family/FamilyService";
 import { legacyService } from "../modules/legacy/LegacyService";
 import { supabase } from "../supabase";
 import { errorMessage } from "../shared/utils/errors";
-import {safeFailure} from '../modules/security/safeEvents';
+import { safeFailure } from "../modules/security/safeEvents";
 import { nav, sampleRecords, samplePeople } from "./data";
 import Overview from "./Overview";
 import Vault, { RecordPage } from "./Vault";
 import People from "./People";
 import Continuity from "./Continuity";
 import Security from "./Security";
+
 function pathNow() {
   return window.location.pathname.startsWith("/app")
     ? window.location.pathname
     : "/app";
 }
+
 export default function Workspace({ session, demo = false }) {
   const vaultContext = useVault();
+
+  // --- TEMP STUB: We will wire the real hook later. For now, allow writes. ---
+
   const [secureExport, setSecureExport] = useState(false);
   const [previewPreferences, setPreviewPreferences] = useState({});
   const [accessPlans, setAccessPlans] = useState([]);
@@ -58,39 +66,54 @@ export default function Workspace({ session, demo = false }) {
     [toast, setToast] = useState(""),
     [epoch, setEpoch] = useState(0),
     [search, setSearch] = useState("");
-  const [globalQuery,setGlobalQuery]=useState('');
+  const [globalQuery, setGlobalQuery] = useState("");
   const mainContent = useRef(null);
   const previousPath = useRef(path);
   const pendingFocus = useRef(false);
+  const [subscription, setSubscription] = useState(null);
+
   useEffect(() => {
     if (previousPath.current !== path) {
       previousPath.current = path;
       pendingFocus.current = true;
     }
-    if (modal) { pendingFocus.current = false; return; }
+    if (modal) {
+      pendingFocus.current = false;
+      return;
+    }
     if (pendingFocus.current && !loading) {
       mainContent.current?.focus({ preventScroll: true });
       pendingFocus.current = false;
     }
   }, [path, loading, modal]);
+
   const rawName = demo
     ? "Shounak"
-    : session.user.user_metadata?.name || session.user.email?.split("@")[0] || "there";
-  const name = rawName.trim()
+    : session.user.user_metadata?.name ||
+      session.user.email?.split("@")[0] ||
+      "there";
+  const name = rawName
+    .trim()
     .replace(/^shounak[\s._-]*zade\.?$/i, "Shounak Zade")
     .replace(/[._-]+/g, " ")
     .replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+
   function go(next) {
-    const target=new URL(next,window.location.origin);
-    if(target.origin!==window.location.origin||!target.pathname.startsWith('/app'))throw new Error('Invalid workspace destination.');
-    if(demo)target.searchParams.set('preview','1');
-    window.history.pushState({}, "", target.pathname+target.search);
+    const target = new URL(next, window.location.origin);
+    if (
+      target.origin !== window.location.origin ||
+      !target.pathname.startsWith("/app")
+    )
+      throw new Error("Invalid workspace destination.");
+    if (demo) target.searchParams.set("preview", "1");
+    window.history.pushState({}, "", target.pathname + target.search);
     setPath(target.pathname);
     setModal(null);
     setEpoch((e) => e + 1);
     setSearch("");
     window.scrollTo(0, 0);
   }
+
   useEffect(() => {
     const pop = () => {
       setPath(pathNow());
@@ -100,19 +123,19 @@ export default function Workspace({ session, demo = false }) {
     window.addEventListener("popstate", pop);
     return () => window.removeEventListener("popstate", pop);
   }, []);
+
   useEffect(() => {
     if (demo) return;
     let alive = true;
-    const v5Records=vaultContext?.service.list();
+    const v5Records = vaultContext?.service.list();
     Promise.allSettled(
       vaultContext
         ? [
             v5Records.then((data) => ({ data })),
             vaultContext.service.people().then((data) => ({ data })),
-            v5Records
-              .then((data) => ({
-                data: data.filter((r) => r.kind === "statement"),
-              })),
+            v5Records.then((data) => ({
+              data: data.filter((r) => r.kind === "statement"),
+            })),
           ]
         : [
             assetService.listAssets(),
@@ -126,7 +149,10 @@ export default function Workspace({ session, demo = false }) {
         errors = [];
       results.forEach((r, i) => {
         const error = r.status === "rejected" ? r.reason : r.value.error;
-        if (error) errors.push(`${labels[i]}: ${vaultContext?safeFailure(error):errorMessage(error)}`);
+        if (error)
+          errors.push(
+            `${labels[i]}: ${vaultContext ? safeFailure(error) : errorMessage(error)}`,
+          );
         else setters[i](r.value.data || []);
       });
       setIssues(errors);
@@ -136,36 +162,79 @@ export default function Workspace({ session, demo = false }) {
       alive = false;
     };
   }, [demo, refresh, vaultContext]);
+
+  // --- BUG FIX: Removed 'blur' listener so file picker doesn't lock vault ---
   useEffect(() => {
     const lock = () => {
       setEpoch((e) => e + 1);
       setModal(null);
     };
     const hidden = () => {
-      if (document.visibilityState !== "visible") lock();
+      if (document.visibilityState === "hidden") lock();
     };
     const key = (e) => {
       if (e.key === "Escape") lock();
     };
-    window.addEventListener("blur", lock);
+
     document.addEventListener("visibilitychange", hidden);
     window.addEventListener("keydown", key);
+
     return () => {
-      window.removeEventListener("blur", lock);
       document.removeEventListener("visibilitychange", hidden);
       window.removeEventListener("keydown", key);
     };
   }, []);
+
+  // Fetch subscription status to show read-only banner
   useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(""), 5000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-  const reviewNow=useReviewClock();
+    if (demo || !session?.user?.id) return;
+    supabase
+      .from("subscriptions")
+      .select("status, trial_ends_at, current_period_end, pilot_ends_at")
+      .eq("user_id", session.user.id)
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data) setSubscription(data);
+      });
+  }, [demo, session]);
+
+  const reviewNow = useReviewClock();
+  const isReadOnly = (() => {
+    if (demo || !subscription) return false;
+    const now = new Date();
+    if (
+      subscription.status === "trial" &&
+      subscription.trial_ends_at &&
+      new Date(subscription.trial_ends_at) < now
+    )
+      return true;
+    if (
+      subscription.status === "active" &&
+      subscription.current_period_end &&
+      new Date(subscription.current_period_end) < now
+    )
+      return true;
+    if (
+      subscription.status === "pilot" &&
+      subscription.pilot_ends_at &&
+      new Date(subscription.pilot_ends_at) < now
+    )
+      return true;
+    if (subscription.status === "expired_readonly") return true;
+    return false;
+  })();
+
+    // Gatekeeper: If user is read-only, kick them out of the "New Record" flow immediately
+  useEffect(() => {
+    if (isReadOnly && window.location.pathname.includes('/vault/new')) {
+      window.location.href = '/app/vault';
+    }
+  }, [isReadOnly]);
   const notify = (text) => setToast(text),
-    pct = demo ? 83 : assessReadiness(records,reviewNow,people).percent,
+    pct = demo ? 83 : assessReadiness(records, reviewNow, people).percent,
     active =
       nav.find(([url]) => url !== "/app" && path.startsWith(url)) || nav[0];
+
   async function signOut() {
     if (demo) {
       window.location.assign("/auth");
@@ -175,6 +244,7 @@ export default function Workspace({ session, demo = false }) {
     if (error) notify(errorMessage(error));
     else window.location.assign("/auth");
   }
+
   function legacyExport() {
     const blob = new Blob(
       [
@@ -200,6 +270,7 @@ export default function Workspace({ session, demo = false }) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     notify("Export downloaded. Store it privately.");
   }
+
   async function exportVault() {
     if (demo || !vaultContext) {
       legacyExport();
@@ -207,6 +278,7 @@ export default function Workspace({ session, demo = false }) {
     }
     setSecureExport(true);
   }
+
   async function downloadPackage() {
     const records = await DatabaseProvider.listRecords(),
       files = await DatabaseProvider.allFiles(),
@@ -231,10 +303,9 @@ export default function Workspace({ session, demo = false }) {
     };
     const recoveryPackage = { content, manifest: await digest(content) };
     await validateRecoveryPackage(recoveryPackage);
-    const blob = new Blob(
-      [JSON.stringify(recoveryPackage, null, 2)],
-      { type: "application/json" },
-    );
+    const blob = new Blob([JSON.stringify(recoveryPackage, null, 2)], {
+      type: "application/json",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -244,9 +315,14 @@ export default function Workspace({ session, demo = false }) {
     setSecureExport(false);
     notify("Encrypted recovery package downloaded.");
   }
+
   return (
     <div className="app-shell leqvor">
-      <a className="skip-link" href="#main-content" onClick={() => mainContent.current?.focus()}>
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={() => mainContent.current?.focus()}
+      >
         Skip to content
       </a>
       <aside className="sidebar">
@@ -274,9 +350,12 @@ export default function Workspace({ session, demo = false }) {
         <div className="sidebar-bottom">
           <div className="preserve-note">
             <span />
-            PRESERVE<br />
-            PLAN<br />
-            PROTECT<br />
+            PRESERVE
+            <br />
+            PLAN
+            <br />
+            PROTECT
+            <br />
             FOREVER
           </div>
           <button
@@ -299,10 +378,24 @@ export default function Workspace({ session, demo = false }) {
       </aside>
       <div className="workspace">
         <header className="topbar">
-          <form className="global-search" onSubmit={event=>{event.preventDefault();go('/app/vault');setSearch(globalQuery);}}>
-            <Icon name="search" size={20}/>
-            <input aria-label="Search records across your vault" value={globalQuery} onChange={event=>setGlobalQuery(event.target.value)} placeholder="Search assets, records, or documents…"/>
-            <button type="submit" aria-label="Search vault"><Icon name="arrow" size={17}/></button>
+          <form
+            className="global-search"
+            onSubmit={(event) => {
+              event.preventDefault();
+              go("/app/vault");
+              setSearch(globalQuery);
+            }}
+          >
+            <Icon name="search" size={20} />
+            <input
+              aria-label="Search records across your vault"
+              value={globalQuery}
+              onChange={(event) => setGlobalQuery(event.target.value)}
+              placeholder="Search assets, records, or documents…"
+            />
+            <button type="submit" aria-label="Search vault">
+              <Icon name="arrow" size={17} />
+            </button>
           </form>
           <div className="topbar-tools">
             <span className="session-label">
@@ -336,10 +429,23 @@ export default function Workspace({ session, demo = false }) {
               </span>
               <Icon name="chevron" size={15} />
             </button>
-            <span className="brand-values">TRUST<br/>DISCRETION<br/>CONTINUITY<i/></span>
+            <span className="brand-values">
+              TRUST
+              <br />
+              DISCRETION
+              <br />
+              CONTINUITY
+              <i />
+            </span>
           </div>
         </header>
-        <main ref={mainContent} tabIndex={-1} aria-label={`${active[1]} content`} id="main-content" className="workspace-content">
+        <main
+          ref={mainContent}
+          tabIndex={-1}
+          aria-label={`${active[1]} content`}
+          id="main-content"
+          className="workspace-content"
+        >
           {demo && (
             <div className="demo-strip">
               <span>DESIGN PREVIEW</span> Sample information · changes stay in
@@ -351,7 +457,10 @@ export default function Workspace({ session, demo = false }) {
           )}
           {issues.length > 0 && (
             <div className="notice" role="alert">
-              <p>Some information could not load. Lists and completion totals may be incomplete until you retry.</p>
+              <p>
+                Some information could not load. Lists and completion totals may
+                be incomplete until you retry.
+              </p>
               {issues.join(" · ")}
               <Button
                 disabled={loading}
@@ -364,6 +473,26 @@ export default function Workspace({ session, demo = false }) {
               </Button>
             </div>
           )}
+          {isReadOnly && (
+            <div
+              className="notice"
+              role="alert"
+              style={{
+                backgroundColor: "#fef3c7",
+                color: "#92400e",
+                border: "1px solid #fde68a",
+                padding: "12px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+                textAlign: "center",
+                fontWeight: "500",
+              }}
+            >
+              ⚠️ Your account is currently in read-only mode. Please renew your
+              subscription to add or edit records.
+            </div>
+          )}
+
           {loading ? (
             <div className="loading-state" role="status">
               <span className="spinner" aria-hidden="true" />
@@ -371,11 +500,12 @@ export default function Workspace({ session, demo = false }) {
             </div>
           ) : path === "/app" ? (
             <Overview {...{ records, people, pct, demo, name, go }} />
-          ) : (path === "/app/vault" || path === "/app/records") ? (
+          ) : path === "/app/vault" || path === "/app/records" ? (
             <Vault {...{ records, search, setSearch, go, demo, pct }} />
           ) : path === "/app/vault/insurance" ? (
-            <Insurance {...{records, people, go, demo}}/>
-          ) : (path === "/app/vault/new" || path === "/app/vault/new/insurance") ? (
+            <Insurance {...{ records, people, go, demo }} />
+          ) : path === "/app/vault/new" ||
+            path === "/app/vault/new/insurance" ? (
             <>
               <Heading
                 eyebrow="YOUR VAULT / NEW RECORD"
@@ -388,7 +518,9 @@ export default function Workspace({ session, demo = false }) {
                   demo={demo}
                   records={records}
                   people={people}
-                  initialCategory={path.endsWith("/insurance")?"Insurance":"Property"}
+                  initialCategory={
+                    path.endsWith("/insurance") ? "Insurance" : "Property"
+                  }
                   onCancel={() => go("/app/vault")}
                   onSaved={(r) => {
                     setRecords((old) => [r, ...old]);
@@ -412,18 +544,38 @@ export default function Workspace({ session, demo = false }) {
               onChanged={() => setRefresh((n) => n + 1)}
               onLock={() => setEpoch((e) => e + 1)}
             />
-          ) : (path === "/app/people" || path === "/app/access") ? (
+          ) : path === "/app/people" || path === "/app/access" ? (
             <People
               key={epoch}
-              {...{ people, setPeople, demo, session, setModal, notify, records, go }}
+              {...{
+                people,
+                setPeople,
+                demo,
+                session,
+                setModal,
+                notify,
+                records,
+                go,
+              }}
             />
           ) : path === "/app/continuity" ? (
             <Continuity
               key={epoch}
-              {...{ pct, demo, letters, setLetters, session, go, records, people }}
+              {...{
+                pct,
+                demo,
+                letters,
+                setLetters,
+                session,
+                go,
+                records,
+                people,
+              }}
             />
           ) : path === "/app/security" ? (
-            <Security {...{ demo, notify, setModal, exportVault, previewPreferences }} />
+            <Security
+              {...{ demo, notify, setModal, exportVault, previewPreferences }}
+            />
           ) : (
             <Empty
               title="Page not found"
@@ -432,7 +584,10 @@ export default function Workspace({ session, demo = false }) {
               <Button onClick={() => go("/app")}>Go to overview</Button>
             </Empty>
           )}
-          <footer className="workspace-footer"><span className="footer-motto">“WHAT ENDURES IS A MORE SECURE TOMORROW.”</span>
+          <footer className="workspace-footer">
+            <span className="footer-motto">
+              “WHAT ENDURES IS A MORE SECURE TOMORROW.”
+            </span>
             <span>
               <Brand />
             </span>
@@ -440,23 +595,31 @@ export default function Workspace({ session, demo = false }) {
               Assets <i /> Records <i /> Forever
             </span>
           </footer>
-          <nav className="legal-links" aria-label="Legal information"><a href="/privacy">Privacy Notice</a><a href="/terms">Terms of Use</a><a href="/trust">Trust Center</a></nav>
+          <nav className="legal-links" aria-label="Legal information">
+            <a href="/privacy">Privacy Notice</a>
+            <a href="/terms">Terms of Use</a>
+            <a href="/trust">Trust Center</a>
+          </nav>
         </main>
       </div>
       <nav className="mobile-nav" aria-label="Mobile navigation">
-        {[nav[0], nav[1], ["/app/continuity", "Continuity", "heart"], nav[3], ["more", "More", "menu"]].map(
-          ([url, label, icon]) => (
-            <button
-              key={url}
-              className={active[0] === url ? "active" : ""}
-              aria-current={active[0] === url ? "page" : undefined}
-              onClick={() => (url === "more" ? setModal("More") : go(url))}
-            >
-              <Icon name={icon} />
-              <span>{label === "Overview" ? "Home" : label}</span>
-            </button>
-          ),
-        )}
+        {[
+          nav[0],
+          nav[1],
+          ["/app/continuity", "Continuity", "heart"],
+          nav[3],
+          ["more", "More", "menu"],
+        ].map(([url, label, icon]) => (
+          <button
+            key={url}
+            className={active[0] === url ? "active" : ""}
+            aria-current={active[0] === url ? "page" : undefined}
+            onClick={() => (url === "more" ? setModal("More") : go(url))}
+          >
+            <Icon name={icon} />
+            <span>{label === "Overview" ? "Home" : label}</span>
+          </button>
+        ))}
       </nav>
       {toast && (
         <div role="status" className="toast">
@@ -472,7 +635,10 @@ export default function Workspace({ session, demo = false }) {
         </div>
       )}
       {secureExport && (
-        <Modal title="Export encrypted recovery package" onClose={() => setSecureExport(false)}>
+        <Modal
+          title="Export encrypted recovery package"
+          onClose={() => setSecureExport(false)}
+        >
           <SecureAction
             title="Export encrypted recovery package"
             onVerified={downloadPackage}
@@ -487,12 +653,88 @@ export default function Workspace({ session, demo = false }) {
           ) : modal === "Multi-factor authentication" && !demo ? (
             <MfaSetup />
           ) : securityDetailNames.has(modal) ? (
-            <SecurityDetails key={modal} name={modal} demo={demo} records={records} preferences={detailPreferences(modal, previewPreferences)} onSave={value => setPreviewPreferences(p => saveDetailPreferences(p, modal, value))}/>
-          ) : modal === 'Share Record' || modal === 'Emergency Access' ? (
-            <AccessPlanner key={modal} triggerService={!demo?vaultContext?.service.triggerPlanning:undefined} demo={demo} people={people} records={records} emergency={modal === 'Emergency Access'} onSave={plan => setAccessPlans(p => [...p, plan])} onInvite={!demo&&vaultContext?.service.sharing?(record,person,files)=>vaultContext.service.sharing.invite(record,person,files):undefined} onFiles={!demo&&vaultContext?.service?record=>vaultContext.service.fileChoices(record):undefined}/>
-          ) : modal === 'Review Permissions' ? (
-            !demo&&vaultContext?.service.sharing?<SharePermissions service={vaultContext.service.sharing} triggerService={vaultContext.service.triggerPlanning} people={people} records={records}/>:
-            <div className="stack-form"><p className="muted">Relationships never grant permissions automatically.</p>{accessPlans.length ? accessPlans.map((plan,i) => <div className="setting-row" key={i}><span><strong>{people.find(p => p.id===plan.person)?.display_name}</strong><small>{plan.records.length} records · {plan.permission} · {plan.condition}</small></span><Button onClick={() => setAccessPlans(p => p.filter((_,index) => index!==i))}>Remove sample plan</Button></div>) : <Empty title="No access plans" text="Use Share Record to review selected access. No real permissions have been granted."/>}</div>
+            <SecurityDetails
+              key={modal}
+              name={modal}
+              demo={demo}
+              records={records}
+              preferences={detailPreferences(modal, previewPreferences)}
+              onSave={(value) =>
+                setPreviewPreferences((p) =>
+                  saveDetailPreferences(p, modal, value),
+                )
+              }
+            />
+          ) : modal === "Share Record" || modal === "Emergency Access" ? (
+            <AccessPlanner
+              key={modal}
+              triggerService={
+                !demo ? vaultContext?.service.triggerPlanning : undefined
+              }
+              demo={demo}
+              people={people}
+              records={records}
+              emergency={modal === "Emergency Access"}
+              onSave={(plan) => setAccessPlans((p) => [...p, plan])}
+              onInvite={
+                !demo && vaultContext?.service.sharing
+                  ? (record, person, files) =>
+                      vaultContext.service.sharing.invite(record, person, files)
+                  : undefined
+              }
+              onFiles={
+                !demo && vaultContext?.service
+                  ? (record) => vaultContext.service.fileChoices(record)
+                  : undefined
+              }
+            />
+          ) : modal === "Review Permissions" ? (
+            !demo && vaultContext?.service.sharing ? (
+              <SharePermissions
+                service={vaultContext.service.sharing}
+                triggerService={vaultContext.service.triggerPlanning}
+                people={people}
+                records={records}
+              />
+            ) : (
+              <div className="stack-form">
+                <p className="muted">
+                  Relationships never grant permissions automatically.
+                </p>
+                {accessPlans.length ? (
+                  accessPlans.map((plan, i) => (
+                    <div className="setting-row" key={i}>
+                      <span>
+                        <strong>
+                          {
+                            people.find((p) => p.id === plan.person)
+                              ?.display_name
+                          }
+                        </strong>
+                        <small>
+                          {plan.records.length} records · {plan.permission} ·{" "}
+                          {plan.condition}
+                        </small>
+                      </span>
+                      <Button
+                        onClick={() =>
+                          setAccessPlans((p) =>
+                            p.filter((_, index) => index !== i),
+                          )
+                        }
+                      >
+                        Remove sample plan
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <Empty
+                    title="No access plans"
+                    text="Use Share Record to review selected access. No real permissions have been granted."
+                  />
+                )}
+              </div>
+            )
           ) : modal === "Plan" ? (
             <Pricing onClose={() => setModal(null)} />
           ) : modal === "More" ? (
@@ -501,9 +743,7 @@ export default function Workspace({ session, demo = false }) {
                 <Button
                   key={item}
                   onClick={() =>
-                    item === "Security"
-                      ? go("/app/security")
-                      : setModal(item)
+                    item === "Security" ? go("/app/security") : setModal(item)
                   }
                 >
                   {item}
@@ -526,8 +766,37 @@ export default function Workspace({ session, demo = false }) {
                 {demo ? "Exit sample workspace" : "Sign out"}
               </Button>
             </div>
-          ) : modal === 'Help' ? (
-            <div className="stack-form"><p>Find your way around your private workspace.</p>{[['Add an important record','/app/vault/new'],['Review trusted people','/app/people'],['Build your continuity plan','/app/continuity'],['Recovery and security','/app/security']].map(([label,url]) => <Button key={url} onClick={() => go(url)}>{label}</Button>)}<details><summary>Account password or vault password?</summary><p>Your account password signs you in. Your separate vault password opens encrypted records. Your offline recovery phrase can recover vault access; an account password reset alone cannot.</p></details><details><summary>What does sharing allow?</summary><p>Access applies to selected records and must be explicitly granted. Being listed as a family member does not grant access.</p></details></div>
+          ) : modal === "Help" ? (
+            <div className="stack-form">
+              <p>Find your way around your private workspace.</p>
+              {[
+                ["Add an important record", "/app/vault/new"],
+                ["Review trusted people", "/app/people"],
+                ["Build your continuity plan", "/app/continuity"],
+                ["Recovery and security", "/app/security"],
+              ].map(([label, url]) => (
+                <Button key={url} onClick={() => go(url)}>
+                  {label}
+                </Button>
+              ))}
+              <details>
+                <summary>Account password or vault password?</summary>
+                <p>
+                  Your account password signs you in. Your separate vault
+                  password opens encrypted records. Your offline recovery phrase
+                  can recover vault access; an account password reset alone
+                  cannot.
+                </p>
+              </details>
+              <details>
+                <summary>What does sharing allow?</summary>
+                <p>
+                  Access applies to selected records and must be explicitly
+                  granted. Being listed as a family member does not grant
+                  access.
+                </p>
+              </details>
+            </div>
           ) : (
             <p className="muted">
               {modal === "Help"
@@ -540,4 +809,3 @@ export default function Workspace({ session, demo = false }) {
     </div>
   );
 }
-
