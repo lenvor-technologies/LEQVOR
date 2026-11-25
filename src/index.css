@@ -1625,3 +1625,42 @@ small {
     overflow-y: auto;
   }
 }
+
+/* =========================================
+   FIX: Stop left-side text from overlapping on desktop
+   ========================================= */
+
+/* Force the left column to use a flexible layout */
+.auth-story {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  height: 100vh !important;
+  padding: 40px 5vw !important;
+  box-sizing: border-box;
+  overflow-y: auto !important; /* Allows scrolling if screen is too short */
+}
+
+/* Force the middle text block to stack neatly with gaps */
+.auth-story-copy {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px !important; /* This adds breathing room between headline, tagline, and quote */
+  margin: 20px 0 !important;
+  max-width: 600px !important;
+}
+
+/* Ensure text elements aren't absolutely positioned and crashing */
+.auth-story-copy h1,
+.auth-story-copy p,
+.auth-story-copy .eyebrow {
+  position: relative !important;
+  margin: 0 !important;
+  width: 100% !important;
+}
+
+/* Specific fix for the quote to ensure it sits below the tagline */
+.auth-story-copy p:last-child {
+  margin-top: 10px !important;
+  font-style: italic;
+}
