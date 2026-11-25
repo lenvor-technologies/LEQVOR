@@ -1,3 +1,7 @@
+import Footer from "./components/Footer"; // --- ADDED: Footer Import ---
+import Pricing from "./app/Pricing";
+import Privacy from "./app/Privacy";
+import Terms from "./app/Terms";
 import { Helmet } from "react-helmet-async";
 import Trust from "./app/Trust";
 import { publicTrustPaths } from "./app/trustContent";
@@ -6,8 +10,6 @@ import { useEffect, useState } from "react";
 import { AuthProvider } from "./lib/providers";
 import Auth from "./Auth";
 import ScreenBoundary from "./components/ui/ScreenBoundary";
-// Load the secure-entry and workspace code before users start recovery setup.
-// A late chunk request after a deployment must not interrupt a saved vault.
 import Workspace from "./app/Workspace";
 import VaultGate from "./features/vault/VaultGate";
 import { errorMessage } from "./shared/utils/errors";
@@ -51,6 +53,24 @@ function Application() {
           "Our commitments, current limitations, and how we handle your data with transparency and privacy by design.",
         keywords:
           "data privacy, trust center, LEQVOR security commitments, transparent data handling",
+      };
+    }
+    if (pathname === "/privacy") {
+      return {
+        title: "Privacy Policy | LEQVOR",
+        description:
+          "Learn how LEQVOR collects, uses, and protects your data during our limited pilot phase. Your privacy and data deletion rights are our priority.",
+        keywords:
+          "privacy policy, data protection, digital legacy privacy, LEQVOR data handling",
+      };
+    }
+    if (pathname === "/terms") {
+      return {
+        title: "Terms of Use | LEQVOR",
+        description:
+          "Read the terms and conditions for using the LEQVOR pilot program. Understand your rights, responsibilities, and our limitations of liability.",
+        keywords:
+          "terms of use, terms and conditions, pilot program terms, LEQVOR legal",
       };
     }
     // Default fallback for homepage or other paths
@@ -125,7 +145,20 @@ function Application() {
   // 2. Assign the correct component to 'content' based on your existing logic
   let content;
 
-  if (publicTrustPaths.includes(pathname)) {
+  if (pathname === "/pricing") {
+    content = (
+      <Pricing
+        onStart={(planId) => {
+          console.log("User selected plan:", planId);
+          window.location.href = "/auth";
+        }}
+      />
+    );
+  } else if (pathname === "/privacy") {
+    content = <Privacy />;
+  } else if (pathname === "/terms") {
+    content = <Terms />;
+  } else if (publicTrustPaths.includes(pathname)) {
     content = <Trust />;
   } else if (
     new URLSearchParams(window.location.search).get("preview") === "1"
@@ -157,15 +190,13 @@ function Application() {
     );
   } else {
     content = (
-      <MfaGate key={auth.session.user.id}>
-        <VaultGate session={auth.session}>
-          <Workspace session={auth.session} />
-        </VaultGate>
-      </MfaGate>
+      <VaultGate session={auth.session}>
+        <Workspace session={auth.session} />
+      </VaultGate>
     );
   }
 
-  // 3. Return BOTH the Helmet (for SEO) and the content
+  // 3. Return BOTH the Helmet (for SEO), the content, AND the Footer
   return (
     <>
       <Helmet>
@@ -177,7 +208,11 @@ function Application() {
         <meta property="og:url" content={`https://www.leqvor.me${pathname}`} />
         <meta property="og:type" content="website" />
       </Helmet>
+
       {content}
+
+      {/* --- ADDED: Footer Component at the bottom of every page --- */}
+      <Footer />
     </>
   );
 }

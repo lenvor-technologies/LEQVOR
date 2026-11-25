@@ -1,13 +1,17 @@
-import InsuranceFields from '../components/records/InsuranceFields';
-import ContinuityDetails from '../components/records/ContinuityDetails';
-import {readRecordDetails} from '../modules/continuity/recordDetails';
-import { readInsuranceForm, insuranceIndex } from '../modules/insurance/continuity';
+import InsuranceFields from "../components/records/InsuranceFields";
+import ContinuityDetails from "../components/records/ContinuityDetails";
+import { readRecordDetails } from "../modules/continuity/recordDetails";
+import {
+  readInsuranceForm,
+  insuranceIndex,
+} from "../modules/insurance/continuity";
 import { completeness } from "../modules/continuity/readiness";
 import { useEffect, useRef, useState } from "react";
-import { MAX_DOCUMENT_BYTES } from '../modules/security/v5Crypto';
+import { MAX_DOCUMENT_BYTES } from "../modules/security/v5Crypto";
 import { Button } from "../components/ui/Primitives";
 import { useVault } from "../features/vault/VaultContext";
 import { safeFailure } from "../modules/security/safeEvents";
+
 const steps = [
   "Record Type",
   "Information",
@@ -15,7 +19,16 @@ const steps = [
   "Trusted Access",
   "Review & Encrypt",
 ];
-export default function RecordWizard({ demo, onCancel, onSaved, records=[], people=[], initialCategory="Property" }) {
+
+export default function RecordWizard({
+  demo,
+  onCancel,
+  onSaved,
+  records = [],
+  people = [],
+  initialCategory = "Property",
+  canWrite = true, // --- SECURITY UPDATE: Accept access flag from Workspace ---
+}) {
   const vault = useVault(),
     [step, setStep] = useState(0),
     [category, setCategory] = useState(initialCategory),
@@ -24,35 +37,53 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
   const form = useRef(null);
   const previousStep = useRef(step);
   const invalidField = useRef(null);
+
   useEffect(() => {
     if (previousStep.current === step) return;
     previousStep.current = step;
-    const target = invalidField.current || form.current.querySelector(`fieldset[data-step="${step}"] h2`);
+    const target =
+      invalidField.current ||
+      form.current.querySelector(`fieldset[data-step="${step}"] h2`);
     invalidField.current = null;
     target?.focus();
   }, [step]);
-  const pending = useRef(false), active = useRef(false);
+
+  const pending = useRef(false),
+    active = useRef(false);
   useEffect(() => {
     active.current = true;
-    return () => { active.current = false; };
+    return () => {
+      active.current = false;
+    };
   }, []);
+
   function validateStep(index) {
     if (index === 0 && !form.current.elements.title.value.trim()) {
-      setError('Enter a record title that is not blank.');
+      setError("Enter a record title that is not blank.");
       invalidField.current = form.current.elements.title;
-      if (index === step) { invalidField.current.focus(); invalidField.current = null; }
+      if (index === step) {
+        invalidField.current.focus();
+        invalidField.current = null;
+      }
       return false;
     }
-    if (index === 2 && form.current.elements.attachment.files?.[0]?.size > MAX_DOCUMENT_BYTES) {
-      setError('Choose a document no larger than 10 MB.');
+    if (
+      index === 2 &&
+      form.current.elements.attachment.files?.[0]?.size > MAX_DOCUMENT_BYTES
+    ) {
+      setError("Choose a document no larger than 10 MB.");
       invalidField.current = form.current.elements.attachment;
-      if (index === step) { invalidField.current.focus(); invalidField.current = null; }
+      if (index === step) {
+        invalidField.current.focus();
+        invalidField.current = null;
+      }
       return false;
     }
     return true;
   }
+
   function next() {
-    setError('');
+    setError("");
     if (!validateStep(step)) return;
     const inputs = form.current.querySelectorAll(
       `fieldset[data-step="${step}"] input,fieldset[data-step="${step}"] textarea,fieldset[data-step="${step}"] select`,
@@ -60,15 +91,28 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
     for (const input of inputs) if (!input.reportValidity()) return;
     setStep((s) => s + 1);
   }
+
   async function save(e) {
     e.preventDefault();
+
+    // --- SECURITY UPDATE: Block save if read-only ---
+    if (!canWrite && !demo) {
+      setError(
+        "Your account is currently read-only. You cannot create new records.",
+      );
+      return;
+    }
+
     if (step < 4) {
       next();
       return;
     }
     if (pending.current) return;
     for (const index of [0, 2]) {
-      if (!validateStep(index)) { setStep(index); return; }
+      if (!validateStep(index)) {
+        setStep(index);
+        return;
+      }
     }
     pending.current = true;
     const f = new FormData(form.current);
@@ -91,9 +135,15 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
         instructions: f.get("instructions"),
         related_records: [],
         archived: false,
-        continuity_details: readRecordDetails(f,people,records),
+        continuity_details: readRecordDetails(f, people, records),
       };
-      if(category === "Insurance") { payload.insurance=readInsuranceForm(f,records,people); metadata.insurance_index=insuranceIndex(payload,demo?0:metadata.file_count); }
+      if (category === "Insurance") {
+        payload.insurance = readInsuranceForm(f, records, people);
+        metadata.insurance_index = insuranceIndex(
+          payload,
+          demo ? 0 : metadata.file_count,
+        );
+      }
       metadata.completeness = completeness(payload);
       if (demo) {
         onSaved({
@@ -105,7 +155,11 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
           updated: "just now",
         });
       } else {
-        const saved = await vault.service.create(metadata, payload, f.get("attachment"));
+        const saved = await vault.service.create(
+          metadata,
+          payload,
+          f.get("attachment"),
+        );
         if (active.current) onSaved(saved);
       }
     } catch (e) {
@@ -115,6 +169,10 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
       if (active.current) setBusy(false);
     }
   }
+
+  // --- SECURITY UPDATE: Check if write is allowed for UI feedback ---
+  const isReadOnly = !canWrite && !demo;
+
   return (
     <form ref={form} className="stack-form" onSubmit={save} noValidate>
       <ol className="wizard-steps">
@@ -135,6 +193,15 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
           and no private payload is saved.
         </p>
       )}
+
+      {/* --- SECURITY UPDATE: Show notice if read-only --- */}
+      {isReadOnly && (
+        <div role="alert" className="notice">
+          Your account is currently read-only. You cannot create new records
+          until your subscription is renewed.
+        </div>
+      )}
+
       <fieldset data-step="0" hidden={step !== 0}>
         <h2 tabIndex={-1}>What are you protecting?</h2>
         <label>
@@ -142,6 +209,7 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
+            disabled={isReadOnly}
           >
             {[
               "Personal",
@@ -161,6 +229,7 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
             name="title"
             required
             maxLength={160}
+            disabled={isReadOnly}
             placeholder={
               category === "Insurance"
                 ? "e.g. Term life insurance"
@@ -175,45 +244,54 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
       </fieldset>
       <fieldset data-step="1" hidden={step !== 1}>
         <h2 tabIndex={-1}>Make this record understandable.</h2>
-        {category === "Insurance" && <InsuranceFields records={records} people={people}/>}
+        {category === "Insurance" && (
+          <InsuranceFields records={records} people={people} />
+        )}
         <label>
           Why does it matter?
-          <textarea name="context" rows={3} />
+          <textarea name="context" rows={3} disabled={isReadOnly} />
         </label>
         <div className="form-pair">
           <label>
             {category === "Insurance" ? "Insurance provider" : "Institution"}
-            <input name="institution" />
+            <input name="institution" disabled={isReadOnly} />
           </label>
           <label>
             {category === "Insurance"
               ? "Policy / reference number"
               : "Reference number"}
-            <input name="reference" autoComplete="off" />
+            <input name="reference" autoComplete="off" disabled={isReadOnly} />
           </label>
         </div>
         <label>
           Where is the original?
-          <input name="location" placeholder="Physical location or custodian" />
+          <input
+            name="location"
+            placeholder="Physical location or custodian"
+            disabled={isReadOnly}
+          />
         </label>
         <label>
-          {category === "Insurance" ? "Continuity instructions" : "What should happen next?"}
-          <textarea name="instructions" rows={3} />
+          {category === "Insurance"
+            ? "Continuity instructions"
+            : "What should happen next?"}
+          <textarea name="instructions" rows={3} disabled={isReadOnly} />
         </label>
         <label>
           Professional contact
           <input
             name="professional"
             placeholder="Lawyer, CA, adviser, or agent"
+            disabled={isReadOnly}
           />
         </label>
       </fieldset>
       <fieldset data-step="2" hidden={step !== 2}>
         <h2 tabIndex={-1}>Keep the evidence together.</h2>
-        <ContinuityDetails people={people} records={records}/>
+        <ContinuityDetails people={people} records={records} />
         <label>
           Supporting document
-          <input name="attachment" type="file" />
+          <input name="attachment" type="file" disabled={isReadOnly} />
         </label>
         <p className="muted">
           Optional · up to 10 MB. Documents and filenames are encrypted on this
@@ -225,7 +303,11 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
         <h2 tabIndex={-1}>Who needs to know?</h2>
         <label>
           Trusted person or nominee
-          <input name="person" placeholder="Name and useful context" />
+          <input
+            name="person"
+            placeholder="Name and useful context"
+            disabled={isReadOnly}
+          />
         </label>
         <p className="muted">
           This encrypted note records your intent. It does not grant access or
@@ -262,12 +344,12 @@ export default function RecordWizard({ demo, onCancel, onSaved, records=[], peop
       <div className="form-actions">
         <Button
           type="button"
-          disabled={busy}
+          disabled={busy || isReadOnly}
           onClick={() => (step ? setStep((s) => s - 1) : onCancel())}
         >
           {step ? "Back" : "Cancel"}
         </Button>
-        <Button variant="primary" disabled={busy}>
+        <Button variant="primary" disabled={busy || isReadOnly}>
           {busy
             ? "Encrypting and saving…"
             : step === 4

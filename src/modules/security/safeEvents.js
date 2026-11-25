@@ -38,12 +38,17 @@ export class AurevaError extends Error {
   }
 }
 export function safeFailure(error) {
-  if (['40001','PT409'].includes(error?.code))
-    return 'This record changed in another session. Reload the latest version before making changes.';
+  if (["40001", "PT409"].includes(error?.code))
+    return "This record changed in another session. Reload the latest version before making changes.";
   if (error instanceof AurevaError) return error.message;
   if (error?.name === "OperationError")
     return "The secret is incorrect or this encrypted information could not be verified.";
   if (/schema cache|does not exist|PGRST205/.test(error?.message || ""))
     return "Your vault database needs an update. Contact the account administrator.";
+
+  // NEW: Catch the subscription read-only error
+  if (error?.message && error.message.includes("LEQVOR_ACCESS_DENIED"))
+    return "Your account is currently in read-only mode. Please renew your subscription to make changes.";
+
   return "This operation could not be completed. Check your connection and try again.";
 }
