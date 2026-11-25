@@ -185,9 +185,9 @@ export default function Workspace({ session, demo = false }) {
     };
   }, []);
 
-  // Fetch subscription status to show read-only banner
+   // Fetch subscription status to show read-only banner
   useEffect(() => {
-    if (demo || !session?.user?.id) return;
+    if (demo || !session?.user?.id || !supabase) return; // <-- Added || !supabase here
     supabase
       .from("subscriptions")
       .select("status, trial_ends_at, current_period_end, pilot_ends_at")
@@ -237,6 +237,10 @@ export default function Workspace({ session, demo = false }) {
 
   async function signOut() {
     if (demo) {
+      window.location.assign("/auth");
+      return;
+    }
+    if (!supabase) { // <-- Added this safety check
       window.location.assign("/auth");
       return;
     }
