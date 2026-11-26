@@ -185,9 +185,16 @@ export default function Workspace({ session, demo = false }) {
     };
   }, []);
 
-   // Fetch subscription status to show read-only banner
+  // Fetch subscription status to show read-only banner
   useEffect(() => {
-    if (demo || !session?.user?.id || !supabase) return; // <-- Added || !supabase here
+    // Bulletproof check: ensures supabase exists AND has a .from method
+    if (
+      demo ||
+      !session?.user?.id ||
+      !supabase ||
+      typeof supabase.from !== "function"
+    )
+      return; // <-- Added || !supabase here
     supabase
       .from("subscriptions")
       .select("status, trial_ends_at, current_period_end, pilot_ends_at")
@@ -224,10 +231,10 @@ export default function Workspace({ session, demo = false }) {
     return false;
   })();
 
-    // Gatekeeper: If user is read-only, kick them out of the "New Record" flow immediately
+  // Gatekeeper: If user is read-only, kick them out of the "New Record" flow immediately
   useEffect(() => {
-    if (isReadOnly && window.location.pathname.includes('/vault/new')) {
-      window.location.href = '/app/vault';
+    if (isReadOnly && window.location.pathname.includes("/vault/new")) {
+      window.location.href = "/app/vault";
     }
   }, [isReadOnly]);
   const notify = (text) => setToast(text),
@@ -240,7 +247,8 @@ export default function Workspace({ session, demo = false }) {
       window.location.assign("/auth");
       return;
     }
-    if (!supabase) { // <-- Added this safety check
+    if (!supabase) {
+      // <-- Added this safety check
       window.location.assign("/auth");
       return;
     }
